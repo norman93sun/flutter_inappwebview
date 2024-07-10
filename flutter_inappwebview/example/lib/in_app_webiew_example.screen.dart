@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -18,8 +19,10 @@ class _InAppWebViewExampleScreenState extends State<InAppWebViewExampleScreen> {
   InAppWebViewController? webViewController;
   InAppWebViewSettings settings = InAppWebViewSettings(
       isInspectable: kDebugMode,
-      mediaPlaybackRequiresUserGesture: false,
-      allowsInlineMediaPlayback: true,
+      mediaPlaybackRequiresUserGesture: true,
+      allowsInlineMediaPlayback: false,
+      useShouldInterceptAjaxRequest: true,
+      interceptOnlyAsyncAjaxRequests: false,
       iframeAllow: "camera; microphone",
       iframeAllowFullscreen: true);
 
@@ -29,6 +32,274 @@ class _InAppWebViewExampleScreenState extends State<InAppWebViewExampleScreen> {
   String url = "";
   double progress = 0;
   final urlController = TextEditingController();
+
+
+  String htmlString = """
+  <html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes" />
+    <link rel="shortcut icon" href="#" />
+    <link rel="stylesheet" href="https://unpkg.com/formiojs@4.14.12/dist/formio.full.min.css">
+    <link rel="stylesheet" href="https://form.carecloud.io/prod/manage/view/styles.css">
+    <link rel="stylesheet" href="https://form.carecloud.io/prod/manage/view/assets/lib/bootswatch/dist/cosmo/bootstrap.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2/?family=Source+Sans+Pro:wght@300;400;700&display=swap">
+    <script src="https://unpkg.com/formiojs@4.14.12/dist/formio.full.min.js"></script>
+    <script src="https://cdn.staticfile.org/jquery/1.10.2/jquery.min.js"></script>
+    <script type="text/javascript">
+      var formio;
+      var submitData = {};
+      var initFormioJson = {};
+      var objectData = {}
+      var formURL = '';
+      var isReadOnly = false;
+      var isViewOnly = false;
+      var zoom = 0;
+      var role = '';
+      var service
+      var controlIsChanging = false
+      var _currentComponent
+      var defaultRenderOptions = {
+        sanitizeConfig: {
+          addTags: ['iframe']
+        }
+      };
+      var renderOptions = {}
+      var isFlutterInAppWebViewReady = false;
+      window.addEventListener("flutterInAppWebViewPlatformReady", function(event) {
+        isFlutterInAppWebViewReady = true;
+      });
+      window.onload = function() {
+        Load.postMessage('window onload...');
+      };
+
+      function refresh() {
+        formio.refresh();
+      }
+
+      function initData(data) {
+        if (data) {
+          objectData = data.objectData // { readOnly: isReadOnly, viewOnly: isViewOnly, zoom: zoom, noAlerts: true }
+          initFormioJson = data.initFormioJson
+          submitData = data.submitData
+          role = data.role
+          formURL = data.url
+          renderOptions = data.renderOptions || defaultRenderOptions
+          createForm()
+        }
+      }
+
+      function initSubmitData(data) {
+        submitData = data
+        Object.keys(submitData.data).map((item) => {
+          if (submitData.data[item] == '') {
+            delete submitData.data[item]
+          }
+        })
+        formio.submission = submitData
+      }
+
+      function initRole(data) {
+        role = data
+        if (formio && formio.form) {
+          resetComponents(formio.form.components);
+        }
+      }
+
+      function createForm() {
+        var initFormData = initFormioJson ? JSON.parse(initFormioJson) : formURL
+        Formio.createForm(document.getElementById('formio'), initFormData, objectData).then(function(form) {
+          form.submission = submitData
+          formio = form
+          form.on('error', function(e) {
+            if (e && e.length) {
+              const error = e.map((x) => x.message)
+              callApp('error', error)
+            }
+          })
+          form.on('change', function(e) {
+            callApp('change')
+          })
+          form.on('formLoad', function(e) {
+            updateControlForm()
+            callApp('formLoad')
+          })
+          form.on('submit', function(e) {
+            callApp('submit')
+          })
+          form.on('submitDone', function(e) {
+            callApp('submitDone')
+          })
+          form.on('submitError', function(e) {
+            callApp('submitError')
+          })
+          form.on('render', function(e) {
+            callApp('render')
+          })
+          form.on('initialized', function(e) {
+            callApp('initialized')
+          })
+          form.on('requestDone', function(e) {
+            callApp('requestDone')
+          })
+          form.on('languageChanged', function(e) {
+            callApp('languageChanged', e)
+          })
+          form.on('saveDraftBegin', function(e) {
+            callApp('saveDraftBegin')
+          })
+          form.on('saveDraft', function(e) {
+            callApp('saveDraft')
+          })
+          form.on('restoreDraft', function(e) {
+            callApp('restoreDraft')
+          })
+          form.on('submissionDeleted', function(e) {
+            callApp('submissionDeleted')
+          })
+          form.on('redraw', function(e) {
+            callApp('redraw')
+          })
+          form.on('focus', function(e) {
+            callApp('focus')
+          })
+          form.on('blur', function(e) {
+            callApp('blur')
+          })
+          form.on('componentChanged', function(e) {
+            callApp('componentChanged')
+          })
+          form.on('componentError', function(e) {
+            callApp('componentError')
+          })
+          form.on('nextPage', function(e) {
+            callApp('nextPage')
+          })
+          form.on('prevPage', function(e) {
+            callApp('prevPage')
+          })
+          form.on('wizardPageClicked', function(e) {
+            callApp('wizardPageClicked')
+          })
+          form.on('wizardPageSelected', function(e) {
+            callApp('wizardPageSelected')
+          })
+          callApp('oninit')
+          setTimeout(() => {
+            resetComponents(formio.form.components);
+            if (form.form && form.form.display == 'form') {
+              updateControlForm();
+            }
+          });
+        })
+      }
+      async function updateControlForm() {
+        if (controlIsChanging || !formio.form || _currentComponent === formio.form.components) {
+          return;
+        }
+        controlIsChanging = true;
+        _currentComponent = _.cloneDeep(formio.form.components || []);
+        // console.warn('formio', formio)
+        const hasChange = resetComponents(_currentComponent);
+        await formio.setForm({
+          components: _currentComponent
+        });
+        controlIsChanging = false;
+      };
+
+      function resetComponents(components) {
+        let hasChange = false;
+        FormioUtils.eachComponent(components, component => {
+          let visible = _.get(component, 'properties.visible');
+          let required = _.get(component, 'properties.required');
+          // console.info(visible, required)
+          if (visible) {
+            visible = visible.split(',');
+            const hidden = visible.indexOf(role) <= -1;
+            if (component.hidden !== hidden) {
+              component.hidden = hidden;
+              hasChange = true;
+            }
+          }
+          if (required) {
+            required = required.split(',');
+            const oldRequired = _.get(component, 'validate.required');
+            const newRequired = required.indexOf(role) > -1;
+            // console.info(oldRequired, newRequired)
+            if (oldRequired !== newRequired) {
+              _.set(component, 'validate.required', newRequired);
+              hasChange = true;
+            }
+          }
+        });
+        return hasChange;
+      };
+
+      function callApp(func, e = '') {
+        if (func) {
+          const data = {
+            Name: func,
+            Data: e
+          }
+          if (isFlutterInAppWebViewReady) {
+            window.flutter_inappwebview.callHandler('formIoCall', data);
+          }
+        }
+      }
+
+      function submit() {
+        if (formio) {
+          if (!formio.checkValidity()) {
+            formio.executeSubmit();
+          } else {
+            var params = formio._data; // _submission
+            if (isFlutterInAppWebViewReady) {
+              window.flutter_inappwebview.callHandler('submitCall', params);
+            }
+          }
+        }
+      }
+    </script>
+    <style type="text/css">
+      html {
+        height: 100%;
+        width: 100%;
+      }
+
+      #formio {
+        height: 100%;
+        overflow: auto;
+      }
+
+      #formio .formio-form-pdf {
+        height: 100%;
+      }
+
+      #formio .formio-component-button {
+        display: none;
+      }
+
+      #formio .formio-iframe {
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .height100 {
+        height: 100%;
+        width: auto;
+      }
+
+      /*隐藏 submit 按钮*/
+      #formio .formio-component-button {
+        display: none;
+      }
+    </style>
+</head>
+<body style="background-color: rgb(250,250,250);height: 100%;width: 100%;">
+<div id='formio'></div>
+</body>
+</html>
+  """;
 
   @override
   void initState() {
@@ -116,11 +387,8 @@ class _InAppWebViewExampleScreenState extends State<InAppWebViewExampleScreen> {
                 InAppWebView(
                   key: webViewKey,
                   webViewEnvironment: webViewEnvironment,
-                  initialUrlRequest:
-                      URLRequest(url: WebUri('https://flutter.dev')),
-                  // initialUrlRequest:
-                  // URLRequest(url: WebUri(Uri.base.toString().replaceFirst("/#/", "/") + 'page.html')),
-                  // initialFile: "assets/index.html",
+                  initialData: InAppWebViewInitialData(
+                      data: htmlString, baseUrl: WebUri('http://localhost')),
                   initialUserScripts: UnmodifiableListView<UserScript>([]),
                   initialSettings: settings,
                   contextMenu: contextMenu,
@@ -170,6 +438,16 @@ class _InAppWebViewExampleScreenState extends State<InAppWebViewExampleScreen> {
                       this.url = url.toString();
                       urlController.text = this.url;
                     });
+                    dynamic initDataParams = {
+                      "url": 'https://form.mcttechnology.cn/shtest-prod/shtest-0-ccn-uploadfiles-en',
+                      "objectData": {
+                        "sanitizeConfig": {
+                          "addTags": ["iframe"]
+                        }
+                      },
+                    };
+                    String jsonString = json.encode(initDataParams);
+                    controller.evaluateJavascript(source: 'initData($jsonString)');
                   },
                   onReceivedError: (controller, request, error) {
                     pullToRefreshController?.endRefreshing();
@@ -188,6 +466,20 @@ class _InAppWebViewExampleScreenState extends State<InAppWebViewExampleScreen> {
                       this.url = url.toString();
                       urlController.text = this.url;
                     });
+                  },
+                  shouldInterceptAjaxRequest: (controller, ajaxRequest) async {
+                    print('ajaxRequest ---------- ${ajaxRequest.toString()}');
+
+                    /// change https://form.mcttechnology.cn/shtest-prod/shtest-0-ccn-uploadfiles-en/storage/s3
+                    if (ajaxRequest.url.toString().contains('storage/s3')) {
+                      ajaxRequest.url = WebUri.uri(Uri.parse(
+                          'https://shtest-app-v2.mcttechnology.cn/api/platform/formio/shtest-0-ccn-uploadfiles-en/storage/s3'));
+
+                      ajaxRequest.headers?.setRequestHeader('authorization',
+                          'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6Ikl2VyJ9.eyJpc3MiOm51bGwsInN1YiI6MTExMTY1MjQxLCJpYXQiOjE3MjA1ODE3MTMsImV4cCI6MTcyMDYyNDkxMywiZW1haWwiOiIzMjY1NjQ0NTYxQHFxLmNvbSIsImdpdmVuX25hbWUiOiJzaHRlc3QiLCJmYW1pbHlfbmFtZSI6ImNqanl5IiwibmFtZSI6IjMyNjU2NDQ1NjFAcXEuY29tIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiMzI2NTY0NDU2MUBxcS5jb20iLCJqdGkiOjQsInVzZXJJZCI6bnVsbH0.uU0WVtEJoa3v17_UHKzaee1y2cFXdArvKQidylPa-YY');
+                    }
+
+                    return ajaxRequest;
                   },
                   onConsoleMessage: (controller, consoleMessage) {
                     print(consoleMessage);
